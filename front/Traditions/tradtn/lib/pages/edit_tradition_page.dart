@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../models/tradition.dart';
 import '../data/categories.dart';
+import '../models/tradition.dart';
+import '../services/api_service.dart';
+import '../theme/app_spacing.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_icon_button.dart';
+import '../widgets/app_scaffold.dart';
+import '../widgets/app_text_field.dart';
 
 class EditTraditionPage extends StatefulWidget {
   final Tradition tradition;
@@ -20,12 +26,12 @@ class _EditTraditionPageState extends State<EditTraditionPage> {
   late String selectedCategory;
 
   bool loading = false;
+  String? imageError;
 
   @override
   void initState() {
     super.initState();
-    titleController =
-        TextEditingController(text: widget.tradition.title);
+    titleController = TextEditingController(text: widget.tradition.title);
     descriptionController =
         TextEditingController(text: widget.tradition.description);
     meaningController =
@@ -48,7 +54,23 @@ class _EditTraditionPageState extends State<EditTraditionPage> {
   }
 
   Future<void> save() async {
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+      imageError = null;
+    });
+
+    final imageUrl = imageUrlController.text.trim();
+    if (imageUrl.isNotEmpty) {
+      final validationError = await ApiService.validateImageUrl(imageUrl);
+      if (!mounted) return;
+      if (validationError != null) {
+        setState(() {
+          loading = false;
+          imageError = validationError;
+        });
+        return;
+      }
+    }
 
     await ApiService.updateTradition(
       id: widget.tradition.id,
@@ -66,81 +88,90 @@ class _EditTraditionPageState extends State<EditTraditionPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Редактировать традицию')),
+    final theme = Theme.of(context);
+
+    return AppScaffold(
+      safeArea: true,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: titleController,
-              decoration:
-              const InputDecoration(labelText: 'Название'),
+            AppIconButton(
+              icon: Icons.arrow_back_rounded,
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
             ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: descriptionController,
-              maxLines: 3,
-              decoration:
-              const InputDecoration(labelText: 'Описание'),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: meaningController,
-              maxLines: 2,
-              decoration:
-              const InputDecoration(labelText: 'Значение'),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: imageUrlController,
-              decoration:
-              const InputDecoration(labelText: 'Image URL'),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: youtubeUrlController,
-              decoration:
-              const InputDecoration(labelText: 'YouTube URL'),
-            ),
-            const SizedBox(height: 12),
-
-            DropdownButtonFormField<String>(
-              value: selectedCategory,
-              items: categories
-                  .map(
-                    (c) =>
-                    DropdownMenuItem(value: c, child: Text(c)),
-              )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() => selectedCategory = v);
-                }
-              },
-              decoration:
-              const InputDecoration(labelText: 'Категория'),
-            ),
-            const SizedBox(height: 24),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: loading ? null : save,
-                child: loading
-                    ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
+            const SizedBox(height: AppSpacing.md),
+            Text('Edit tradition', style: theme.textTheme.headlineMedium),
+            const SizedBox(height: AppSpacing.xl),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppTextField(
+                    controller: titleController,
+                    label: 'Title',
+                    hintText: 'Name of the tradition',
                   ),
-                )
-                    : const Text('Сохранить'),
+                  const SizedBox(height: AppSpacing.md),
+                  AppTextField(
+                    controller: descriptionController,
+                    label: 'Description',
+                    hintText: 'Short explanation',
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppTextField(
+                    controller: meaningController,
+                    label: 'Meaning',
+                    hintText: 'Cultural significance',
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppTextField(
+                    controller: imageUrlController,
+                    label: 'Image URL',
+                    hintText: 'https://...',
+                    keyboardType: TextInputType.url,
+                    errorText: imageError,
+                    onChanged: (_) => setState(() => imageError = null),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppTextField(
+                    controller: youtubeUrlController,
+                    label: 'YouTube URL',
+                    hintText: 'https://www.youtube.com/watch?v=...',
+                    keyboardType: TextInputType.url,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  DropdownButtonFormField<String>(
+                    value: selectedCategory,
+                    items: categories
+                        .map(
+                          (c) => DropdownMenuItem(value: c, child: Text(c)),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() => selectedCategory = v);
+                      }
+                    },
+                    decoration: const InputDecoration(labelText: 'Category'),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AppButton(
+                    label: 'Save changes',
+                    loading: loading,
+                    onPressed: loading ? null : save,
+                    icon: Icons.save_rounded,
+                  ),
+                ],
               ),
             ),
           ],

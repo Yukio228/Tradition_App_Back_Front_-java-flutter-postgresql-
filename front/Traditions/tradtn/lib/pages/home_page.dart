@@ -1,20 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'auth_page.dart';
-import 'add_tradition_page.dart';
 import '../services/api_service.dart';
-import 'tradition_detail_page.dart';
 import '../services/favorites_service.dart';
+import '../theme/app_spacing.dart';
+import '../theme/theme_controller.dart';
+import '../widgets/app_bottom_sheet.dart';
+import '../widgets/app_empty_state.dart';
+import '../widgets/app_icon_button.dart';
+import '../widgets/app_scaffold.dart';
+import '../widgets/app_skeleton.dart';
+import '../widgets/app_text_field.dart';
+import '../widgets/tradition_card.dart';
+import 'add_tradition_page.dart';
+import 'auth_page.dart';
 import 'edit_tradition_page.dart';
+import 'profile_page.dart';
+import 'tradition_detail_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, required this.themeController});
+
+  final ThemeController themeController;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  final TextEditingController searchController = TextEditingController();
   String search = '';
   bool showFavorites = false;
   bool isAdmin = false;
@@ -28,30 +41,61 @@ class _HomePageState extends State<HomePage> {
   Future<void> loadRole() async {
     final prefs = await SharedPreferences.getInstance();
     final role = prefs.getString('role') ?? 'USER';
-
     setState(() {
       isAdmin = role.toUpperCase() == 'ADMIN';
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Традиции Казахстана'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite),
-            color: showFavorites ? Colors.red : null,
-            onPressed: () {
-              setState(() {
-                showFavorites = !showFavorites;
-              });
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AuthPage(themeController: widget.themeController),
+      ),
+      (_) => false,
+    );
+  }
+
+  void _openSettings() {
+    showAppBottomSheet(
+      context: context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Settings',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Light theme'),
+            value: Theme.of(context).brightness == Brightness.light,
+            onChanged: (value) {
+              widget.themeController
+                  .setMode(value ? ThemeMode.light : ThemeMode.dark);
             },
           ),
-          if (isAdmin)
-            IconButton(
-              icon: const Icon(Icons.add),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
               onPressed: () async {
                 await Navigator.push(
                   context,
@@ -61,60 +105,120 @@ class _HomePageState extends State<HomePage> {
                 );
                 setState(() {});
               },
-            ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.clear();
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const AuthPage()),
-                    (_) => false,
-              );
-            },
-          ),
-        ],
-      ),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add'),
+            )
+          : null,
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 🔍 Поиск
+          const SizedBox(height: AppSpacing.sm),
           Padding(
-            padding: const EdgeInsets.all(8),
-            child: TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Поиск традиции...',
-              ),
-              onChanged: (v) => setState(() => search = v.toLowerCase()),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Traditions',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Discover culture, rituals, and stories.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.7),
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                AppIconButton(
+                  icon: showFavorites
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: showFavorites
+                      ? Theme.of(context).colorScheme.secondary
+                      : null,
+                  onPressed: () {
+                    setState(() => showFavorites = !showFavorites);
+                  },
+                  tooltip: 'Favorites',
+                ),
+                const SizedBox(width: 8),
+                AppIconButton(
+                  icon: Icons.tune_rounded,
+                  onPressed: _openSettings,
+                  tooltip: 'Settings',
+                ),
+                const SizedBox(width: 8),
+                AppIconButton(
+                  icon: Icons.person_rounded,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ProfilePage(themeController: widget.themeController),
+                      ),
+                    );
+                  },
+                  tooltip: 'Profile',
+                ),
+                const SizedBox(width: 8),
+                AppIconButton(
+                  icon: Icons.logout_rounded,
+                  onPressed: _logout,
+                  tooltip: 'Log out',
+                ),
+              ],
             ),
           ),
-
+          const SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: AppTextField(
+              controller: searchController,
+              hintText: 'Search traditions...',
+              prefixIcon: Icons.search_rounded,
+              onChanged: (value) => setState(() => search = value.toLowerCase()),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
           Expanded(
             child: FutureBuilder(
               future: ApiService.getTraditions(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const AppSkeletonList();
                 }
 
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text('Ошибка: ${snapshot.error}'),
+                  return const AppEmptyState(
+                    title: 'Something went wrong',
+                    subtitle: 'Please try again later.',
+                    icon: Icons.error_outline_rounded,
                   );
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Нет данных'));
+                  return const AppEmptyState(
+                    title: 'No traditions yet',
+                    subtitle: 'Add the first tradition to get started.',
+                    icon: Icons.auto_awesome_rounded,
+                  );
                 }
 
                 var list = snapshot.data!;
 
                 if (search.isNotEmpty) {
                   list = list
-                      .where(
-                        (t) => t.title.toLowerCase().contains(search),
-                  )
+                      .where((t) => t.title.toLowerCase().contains(search))
                       .toList();
                 }
 
@@ -124,74 +228,65 @@ class _HomePageState extends State<HomePage> {
                     final favs = favSnap.data ?? {};
 
                     if (showFavorites) {
-                      list =
-                          list.where((t) => favs.contains(t.id)).toList();
+                      list = list.where((t) => favs.contains(t.id)).toList();
                     }
 
                     if (list.isEmpty) {
-                      return const Center(child: Text('Ничего не найдено'));
+                      return const AppEmptyState(
+                        title: 'No matches found',
+                        subtitle: 'Try a different search or filter.',
+                        icon: Icons.search_off_rounded,
+                      );
                     }
 
-                    return ListView.builder(
+                    return ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        0,
+                        AppSpacing.lg,
+                        AppSpacing.xl,
+                      ),
                       itemCount: list.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: AppSpacing.lg),
                       itemBuilder: (context, index) {
                         final t = list[index];
                         final isFav = favs.contains(t.id);
 
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          child: ListTile(
-                            title: Text(t.title),
-                            subtitle: Text(
-                              t.description.isNotEmpty
-                                  ? t.description
-                                  : 'Без описания',
-                            ),
-                            leading: IconButton(
-                              icon: Icon(
-                                isFav
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isFav ? Colors.red : null,
-                              ),
-                              onPressed: () async {
-                                await FavoritesService.toggle(t.id);
-                                setState(() {});
-                              },
-                            ),
-                            trailing: isAdmin
-                                ? IconButton(
-                              icon: const Icon(Icons.delete,
-                                  color: Colors.red),
-                              onPressed: () async {
-                                await ApiService.deleteTradition(t.id);
-                                setState(() {});
-                              },
-                            )
-                                : const Icon(Icons.arrow_forward_ios,
-                                size: 16),
-                            onTap: () async {
-                              if (isAdmin) {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        EditTraditionPage(tradition: t),
-                                  ),
-                                );
-                                setState(() {});
-                              } else {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        TraditionDetailPage(tradition: t),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
+                        return TraditionCard(
+                          tradition: t,
+                          isFavorite: isFav,
+                          isAdmin: isAdmin,
+                          onFavoriteToggle: () async {
+                            await FavoritesService.toggle(t.id);
+                            setState(() {});
+                          },
+                          onTap: () async {
+                            if (isAdmin) {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      EditTraditionPage(tradition: t),
+                                ),
+                              );
+                              setState(() {});
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      TraditionDetailPage(tradition: t),
+                                ),
+                              );
+                            }
+                          },
+                          onDelete: isAdmin
+                              ? () async {
+                                  await ApiService.deleteTradition(t.id);
+                                  setState(() {});
+                                }
+                              : null,
                         );
                       },
                     );

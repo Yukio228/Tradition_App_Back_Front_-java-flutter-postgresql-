@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/tradition.dart';
+import '../theme/app_spacing.dart';
+import 'app_card.dart';
+import 'app_chip.dart';
+import 'app_icon_button.dart';
+import 'app_network_image.dart';
 
 class TraditionCard extends StatelessWidget {
   final Tradition tradition;
@@ -21,119 +26,122 @@ class TraditionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 🖼 IMAGE
-            if (tradition.hasImage)
-              Stack(
-                children: [
-                  Image.network(
-                    tradition.imageUrl,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+    final theme = Theme.of(context);
+
+    return AppCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (tradition.hasImage)
+            Stack(
+              children: [
+                AppNetworkImage(
+                  url: tradition.imageUrl,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  heroTag: 'tradition-image-${tradition.id}',
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
                   ),
-
-                  // 🆕 NEW BADGE
-                  if (tradition.isNew)
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Chip(
-                        label: const Text('Новое'),
-                        backgroundColor: Colors.greenAccent,
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.55),
+                        ],
                       ),
                     ),
-
-                  // ▶️ VIDEO ICON
-                  if (tradition.hasVideo)
-                    const Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Icon(
-                        Icons.play_circle_fill,
-                        color: Colors.white,
-                        size: 36,
-                      ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: AppChip(
+                    label: tradition.isNew ? 'New' : tradition.category,
+                    icon: tradition.isNew
+                        ? Icons.auto_awesome_rounded
+                        : Icons.category_rounded,
+                  ),
+                ),
+                if (tradition.hasVideo)
+                  const Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Icon(
+                      Icons.play_circle_fill_rounded,
+                      color: Colors.white,
+                      size: 30,
                     ),
-                ],
-              ),
-
+                  ),
+              ],
+            )
+          else
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // TITLE + FAVORITE
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          tradition.title,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
-                          color: isFavorite ? Colors.red : null,
-                        ),
-                        onPressed: onFavoriteToggle,
-                      ),
-                    ],
-                  ),
-
-                  if (tradition.category.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        tradition.category,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blueGrey.shade600,
-                        ),
-                      ),
-                    ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    tradition.description.isNotEmpty
-                        ? tradition.description
-                        : 'Без описания',
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-
-                  // 🗑 ADMIN DELETE
-                  if (isAdmin)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: onDelete,
-                      ),
-                    ),
-                ],
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: AppChip(
+                label: tradition.category,
+                icon: Icons.category_rounded,
               ),
             ),
-          ],
-        ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        tradition.title,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                    ),
+                    AppIconButton(
+                      icon: isFavorite
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      onPressed: onFavoriteToggle,
+                      tooltip: 'Favorite',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  tradition.description.isNotEmpty
+                      ? tradition.description
+                      : 'No description available.',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+                if (isAdmin && onDelete != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text('Delete'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -16,7 +16,16 @@ public class User {
     private String password;
 
     @Column(length = 20)
-    private String role; // ✅ ДОБАВИЛИ ROLE
+    private String role;
+
+    @Column(length = 20, unique = true)
+    private String username;
+
+    @Column(length = 10)
+    private String themePreference; // DARK / LIGHT / SYSTEM
+
+    @Column(length = 255)
+    private String avatarUrl;
 
     // -------- GETTERS --------
 
@@ -32,8 +41,20 @@ public class User {
         return password;
     }
 
-    public String getRole() {       // ✅ ВАЖНО
+    public String getRole() {
         return role;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getThemePreference() {
+        return themePreference;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
     }
 
     // -------- SETTERS --------
@@ -50,7 +71,20 @@ public class User {
         this.password = password;
     }
 
-    public void setRole(String role) {   // ✅ ВАЖНО
+    public void setRole(String role) {
         this.role = role;
     }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setThemePreference(String themePreference) {
+        this.themePreference = themePreference;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
 }
+
